@@ -2,6 +2,7 @@ MARK_NONE = '🔘 '
 MARK_FALSE = '🟡 '
 MARK_SHIP = '🔵 '
 MARK_KILL = '🔻 '
+MARK_MISS = '⚫ '
 class Board:
     def __init__(self):
         self.game_board = self.create_board()
@@ -42,18 +43,50 @@ class Board:
 
     def set_area(self, row: int, column: int, shape: int, pos: str ='_'):
         if pos == '_':
-            if row == 1:
-                if column-1 == 0:
-                    self.game_board[row-1][column-1+shape] = MARK_FALSE
-                    for i in range(shape+1):
-                        self.game_board[row][column+i-1] = MARK_FALSE
-                elif column == 6 - shape + 1:
-                    self.game_board[row-1][column-2] = MARK_FALSE
-                    for i in range(shape+1):
-                        self.game_board[row][column+i-2] = MARK_FALSE
-            elif row == 6:
-                if column == 6:
-                    self.game_board[row-1][column-shape-1] = MARK_FALSE
+            #print(self.game_board)
+            for r in range(len(self.game_board)):
+                if r == row - 1:
+                    if r == 0:
+                        for j in range(shape+2):
+                            self.game_board[r+1][column+j-2] = MARK_FALSE
+                    elif r == 5:
+                        for j in range(shape+2):
+                            self.game_board[r-1][column+j-2] = MARK_FALSE
+                    else:
+                        for j in range(shape+2):
+                            self.game_board[r-1][column+j-2] = MARK_FALSE
+                            self.game_board[r+1][column+j-2] = MARK_FALSE
+
+        if pos == '|':
+            #print(self.game_board)
+            for l in range(len(self.game_board)):
+                if '🔵 ' in self.game_board[l]:
+                    ind = self.game_board[l].index('🔵 ')
+                    if ind != 0 and ind != 5:
+                        self.game_board[l][ind-1] = MARK_FALSE
+                        self.game_board[l][ind+1] = MARK_FALSE
+                    elif ind == 0:
+                        self.game_board[l][ind+1] = MARK_FALSE
+                    elif ind == 5:
+                        self.game_board[l][ind-1] = MARK_FALSE
+
+            # if row == 1:
+            #     if column-1 == 0:
+            #         self.game_board[row-1][column-1+shape] = MARK_FALSE
+            #         for i in range(shape+1):
+            #             self.game_board[row][column+i-1] = MARK_FALSE
+            #     elif column == 6 - shape + 1:
+            #         self.game_board[row-1][column-2] = MARK_FALSE
+            #         for i in range(shape+1):
+            #             self.game_board[row][column+i-2] = MARK_FALSE
+            # elif row == 6:
+            #     if column == 6:
+            #         self.game_board[row-1][column-shape-1] = MARK_FALSE
+
+
+
+
+
                 #     for i in range(shape+1):
                 #         self.game_board[row][column+i-1] = MARK_FALSE
                 # elif column == 6 - shape + 1:
@@ -77,15 +110,19 @@ class Ship:
 
     def create_ship(self, x: int, y: int, shape: int, pos: str = '_'):
         go = False
-        if shape == 3:
-            if self.long_ship != 0:
-                go = True
-        elif shape == 2:
-            if self.ship != 0:
-                go = True
-        elif shape == 1:
-            if self.small_ship != 0:
-                go = True
+        if any([shape == 3 and self.long_ship != 0,
+                shape == 2 and self.ship != 0,
+                shape == 1 and self.small_ship != 0]):
+            go = True
+        # if shape == 3:
+        #     if self.long_ship != 0:
+        #         go = True
+        # elif shape == 2:
+        #     if self.ship != 0:
+        #         go = True
+        # elif shape == 1:
+        #     if self.small_ship != 0:
+        #         go = True
         if go:
             result = True
             if pos == '_':
@@ -115,6 +152,7 @@ class Ship:
                             break
                     if result:
                         print('Корабли успешно расположены, мой Капитан!')
+                        self.player_board.set_area(x, y, shape, pos)
                         if shape == 3:
                             self.long_ship -= 1
                         elif shape == 2:
@@ -127,13 +165,14 @@ class Ship:
             print('Каррамба! Что-то всё полетело к чертям! Сверься с курсом, ибо мы не можем выполнить этот приказ!')
 
 p_1 = Ship()
-p_1.create_ship(1, 6, 1)
-p_1.create_ship(6, 6, 1)
-p_1.create_ship(1, 1, 1)
-p_1.create_ship(6, 1, 1)
-p_1.create_ship(5, 4, 2, '|')
-p_1.create_ship(3, 5, 2)
-p_1.create_ship(3, 1, 3)
+p_1.create_ship(3, 6, 3, '|')
+# p_1.create_ship(3, 4, 2, '|')
+# p_1.create_ship(6, 6, 1)
+# p_1.create_ship(1, 1, 1)
+# p_1.create_ship(6, 1, 1)
+# p_1.create_ship(5, 4, 2, '|')
+# p_1.create_ship(3, 5, 2)
+# p_1.create_ship(3, 1, 3)
 # p_1.create_ship(3, 1, 3, '|')
 print(p_1.player_board)
 
