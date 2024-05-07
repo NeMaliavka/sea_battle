@@ -1,47 +1,82 @@
+import random
+from abc import ABC, abstractmethod
 MARK_NONE = '🔘 '
-MARK_FALSE = '🟡 '
+MARK_BUFFER = '🟡 '
 MARK_SHIP = '🔵 '
 MARK_KILL = '🔻 '
 MARK_MISS = '⚫ '
 
 
 class PosError(Exception):
-    def __init__(self, message, error):
-        super().__init__(message)
-        print(f': {error}')
+    pass
+
+class PosOutError(PosError):
+    def __str__(self):
+        return 'Каррамба! За пределы моря не стреляем! Таков морской закон!'
+
+
+class PosRepidError(PosError):
+    def __str__(self):
+        return "Капитан, мы уже стреляли по этим координатам..."
 
 
 class Block_ship:
     def __init__(self, x: int, y: int) -> None:
-        self.x = None
-        self.y = None
-        self.check_pos(x, y)
+        self.x = x
+        self.y = y
+        # self.check_pos(x, y)
 
-    def check_pos(self, x, y):
-        if all([0 <= x <= 5,
-                0 <= y <= 5]):
-            self.x = x
-            self.y = y
-            print("Ok")
-        else:
-            return 'Каррамба! Капитан, ты напутал с координатами и всё полетело в ТарТарары!'
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
 
+    def __str__(self):
+        return f'pos x -> {self.x} \npos y -> {self.y}'
+
+    # def check_pos(self, x, y):
+    #     if all([1 <= x <= 6,
+    #             1 <= y <= 6]):
+    #         self.x = x
+    #         self.y = y
+    #         print("Ok")
+    #     else:
+    #         return 'Каррамба! Капитан, ты напутал с координатами и всё полетело в ТарТарары!'
+
+class Ship:
+    def __init__(self, size: int, block_ship: Block_ship, direction: str):
+        self.size = size
+        self.start_dot = block_ship
+        self.direction = direction
+        self.lives = size
+
+        self.ship_blocks = []
+        for i in range(self.size):
+            pos_x = self.start_dot.x
+            pos_y = self.start_dot.y
+
+            if self.direction == '|':
+                pos_x += i
+            elif self.direction == '-':
+                pos_y += i
+
+            self.ship_blocks.append(Block_ship(pos_x, pos_y))
 
 class Board:
-    def __init__(self, hid: bool = True):
-        self.game_board = self.create_board()
-        self.ships = {3: 1, 2: 2, 1: 4}
-        self.good_ships = 6
+    def __init__(self, hid: bool = False, size: int = 6):
+        self.count = 0
+        self.busy = [] # список занятых точек на доске
+        self.ships = [] # список кораблей на поле
         self.hid = hid
+        self.size_board = size
+        self.game_board = self.create_board()
 
     def get_game_board(self):
         return self.game_board
 
     def create_board(self):
         field = []
-        for i in range(1, 7):
+        for i in range(self.size_board):
             row = []
-            for j in range(1, 7):
+            for j in range(self.size_board):
                 row.append(MARK_NONE)
             field.append(row)
         return field
@@ -49,82 +84,196 @@ class Board:
     def get_board(self):
         return self.game_board
 
-    def add_ship(self, block, direction, size_ship):
+    def add_ship(self, ship: Ship):
+        for d in ship.ship_blocks:
+            if self.out(d) or d in self.busy:
+                raise PosError
+        for d in ship.ship_blocks:
+            self.game_board[d.x][d.y] = MARK_SHIP
+            self.busy.append(d)
+        self.ships.append(ship)
+        self.coutour(ship)
 
-        if direction == '|' and self.ships[size_ship] != 0:
-            if block[0] + size_ship - 1 <= 6:
-                buffer_zone = []
-                for i in range(size_ship):
-                    if self.game_board[block[0]+i][block[1]] == MARK_NONE:
-                        self.game_board[block[0] + i][block[1]] = MARK_SHIP
-                        buffer_zone.append((block[0]+i, block[1]))
-                    else:
-                        return 'Капитан, данная позиция уже занята другим кораблём!'
-            else:
-                return 'Капитан, мы не можем выполнить Ваш приказ! Корабль не может встать на эту позицию'
-            self.ships[size_ship] -= 1
-            self.contour(buffer_zone)
-            print(f'кораблей с {size_ship} можно разместить еще {self.ships[size_ship]}')
-        elif direction == '-' and self.ships[size_ship] != 0:
-            if block[1] + size_ship - 1 <= 6:
-                buffer_zone = []
-                for i in range(size_ship):
-                    if self.game_board[block[0]][block[1]+i] == MARK_NONE:
-                        self.game_board[block[0]][block[1]+i] = MARK_SHIP
-                        buffer_zone.append((block[0], block[1]+i))
-                    else:
-                        return 'Капитан, данная позиция уже занята другим кораблём!'
-            else:
-                return 'Капитан, мы не можем выполнить Ваш приказ! Корабль не может встать на эту позицию'
-            self.ships[size_ship] -= 1
-            self.contour(buffer_zone)
-            print(f'кораблей с {size_ship} можно разместить еще {self.ships[size_ship]}')
-        else:
-            return 'Капитан, у нас больше нет таких кораблей...'
+    def coutour(self, ship: Ship, verb: bool = True):
+        n = [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0,-1), (0, 0), (0, 1),
+            (1, -1), (1, 0), (1, 1),
+        ]
+        for d in ship.ship_blocks:
+            for dx, dy in n:
+                current = Block_ship(d.x + dx, d.y + dy)
+                if not(self.out(current)) and current not in self.busy:
+                    #self.game_board[current.x][current.y] = MARK_BUFFER
+                    if verb:
+                        self.game_board[current.x][current.y] = MARK_BUFFER
+                    self.busy.append(current)
 
-    def contour(self, ships: list):
-        pass
+    def out(self, dot: Block_ship):
+        return not((0 <= dot.x < self.size_board) and (0 <= dot.y < self.size_board))
+
+    def attack(self, dot: Block_ship):
+        if self.out(dot):
+            raise PosOutError
+
+        if dot in self.busy:
+            raise PosRepidError
+
+        self.busy.append(dot)
+
+        for ship in self.ships:
+            if dot in ship.ship_blocks:
+                ship.lives -= 1
+                self.game_board[dot.x][dot.y] = MARK_KILL
+                if ship.lives == 0:
+                    print('Аррра! Корабль уничтожен!')
+                    self.count += 1
+                    self.coutour(ship, verb=True)
+                    return False
+                else:
+                    print('Судно подбито!')
+                    return True
+        self.game_board[dot.x][dot.y] = MARK_MISS
+        print('Не судьба, снаряд теперь покоится на дне моря...')
+        return False
+
+    def begin(self):
+        self.busy = []
 
     def __str__(self):
-        return f' | 1 | 2 | 3 | 4 | 5 | 6 \n1|{"|".join(self.game_board[0])}' \
-               f'\n2|{"|".join(self.game_board[1])}' \
-               f'\n3|{"|".join(self.game_board[2])}' \
-               f'\n4|{"|".join(self.game_board[3])}' \
-               f'\n5|{"|".join(self.game_board[4])}' \
-               f'\n6|{"|".join(self.game_board[5])}'
+        res = '    '
+        for i in range(self.size_board):
+            res += str(i+1)+ '|  '
+        res += '\n'
+        count = 1
+        for i in range(self.size_board):
+            res += str(count)+'|'+"|".join(self.game_board[i]) + '|' + '\n'
+            count += 1
+        if self.hid:
+            res = res.replace(MARK_SHIP, MARK_NONE)
+            res = res.replace(MARK_BUFFER, MARK_NONE)
+        return res
+
+class Player(ABC):
+    def __init__(self, board, enemy):
+        self.board = board
+        self.enemy = enemy
+
+    @abstractmethod
+    def ask(self):
+        '''Запросить данные для создания/размещения корабля'''
+        pass
+
+    def move(self):
+        while True:
+            try:
+                target = self.ask()
+                repeat = self.enemy.attack(target)
+                return repeat
+            except PosError as e:
+                print(e)
+
+class Computer(Player):
+    def ask(self):
+        dot = Block_ship(random.randint(0, self.board.size_board - 1), random.randint(0, self.board.size_board - 1))
+        print(f'Наш противник отправился в координаты: {dot.x} {dot.y}')
+        return dot
+
+class User(Player):
+    def ask(self):
+        while True:
+            coords = input('Куда отправимся, мой капитан: ').split()
+            if len(coords) != 2:
+                print('Нужны 2 координаты')
+                continue
+            x, y = coords
+
+            try:
+                x, y = int(x), int(y)
+            except:
+                print('Мой капитан, введи числами')
+                continue
+            return Block_ship(x-1, y-1)
 
 
-class Ship:
-    def __init__(self, size: int, pos_x: int, pos_y: int, direction: str):
-        self.size = size
-        self.start_dot = (pos_x - 1, pos_y - 1)
-        self.direction = direction
+class Game:
+    def __init__(self, size=6):
+        self.size_board = size
+        player_board = self.enemy_board()
+        computer_board = self.enemy_board()
+        computer_board.hid = True
+
+        self.player = User(player_board, computer_board)
+        self.computer = Computer(computer_board, player_board)
+
+    def create_board(self):
+        ships = [3, 2, 2, 1, 1, 1, 1]
+        game_board = Board(size=self.size_board)
+        check = 0
+        for ship in ships:
+            while True:
+                check += 1
+                if check > 200:
+                    return None
+                s = Ship(ship, Block_ship(random.randint(0, self.size_board), random.randint(0, self.size_board)), random.choice(['|', '-']))
+                try:
+                    game_board.add_ship(s)
+                    break
+                except PosError:
+                    pass
+        game_board.begin()
+        return game_board
+
+    def enemy_board(self):
+        board = None
+        while board is None:
+            board = self.create_board()
+        return board
+
+    def game_process(self):
+        num = 0
+        while True:
+            print(' - 🏴‍☠️ - 🏴‍☠️ - 🏴‍☠️ ')
+            print('Доска Капитана:')
+            print(self.player.board)
+            print(' - 🤖 - 🤖 - 🤖')
+            print('Доска противника:')
+            print(self.computer.board)
+            if num % 2 == 0:
+                print('Капитан рулит')
+                game_is_on = self.player.move()
+            else:
+                game_is_on = self.computer.move()
+            if game_is_on:
+                num -= 1
+
+            if self.computer.board.count > 6:
+                print('Тысяча чертей! Каптан одолел морских дъяволов!')
+                break
+            if self.player.board.count > 6:
+                print('Палундрааа! Мы тонем!')
+                break
+
+            num += 1
+    def new_game(self):
+        self.start_text()
+        self.game_process()
+
+    def start_text(self):
+        hello_text = '''
+\tКарррамба!
+Приветствую тебя, мой капитан!
+Ты готов отправиться в путь, в увлекательное морское путешествие с оглушающим залпом пушек?
+Конечно готов! К чему эти вопросы, якорь мне под палубу!
+Запомни, морской ты чёрт, для управления ты должен передавать направление:
+широту и долготу, без них мы бессильны.
+Помни же, сначала передаешь информацию о координатах Х,
+а потом уже Y, и да поцелует меня русалка, все эти морские крысы пойдут ко дню.
+Тащите рому, бездельники, Капитан у штурвала!'''
+        print(hello_text)
 
 
-class Player:
-    def __init__(self) -> None:
-        self.player_board = Board()
+g = Game()
+g.new_game()
 
 
-# p_1 = Ship()
-# p_1.create_ship(3, 6, 3, '|')
-# p_1.create_ship(3, 4, 2, '|')
-# p_1.create_ship(6, 6, 1)
-# p_1.create_ship(1, 1, 1)
-# p_1.create_ship(6, 1, 1)
-# p_1.create_ship(5, 4, 2, '|')
-# p_1.create_ship(3, 5, 2)
-# p_1.create_ship(3, 1, 3)
-# p_1.create_ship(3, 1, 3, '|')
-
-dot = Block_ship(0, 5)
-# print(dot.y, dot.x)
-game = Board()
-print(game.add_ship((dot.x, dot.y), '|', 3))
-print(game)
-dot2 = Block_ship(0, 5)
-print(game.add_ship((dot2.x, dot2.y), '|', 2))
-print(game)
-dot3 = Block_ship(0, 0)
-game.add_ship((dot3.x, dot3.y), '-', 2)
-print(game)
