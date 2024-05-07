@@ -143,7 +143,7 @@ class Board:
     def __str__(self):
         res = '    '
         for i in range(self.size_board):
-            res += str(i+1)+ '|  '
+            res += str(i+1) + '|  '
         res += '\n'
         count = 1
         for i in range(self.size_board):
@@ -179,6 +179,15 @@ class Computer(Player):
         print(f'Наш противник отправился в координаты: {dot.x} {dot.y}')
         return dot
 
+    def move(self):
+        while True:
+            try:
+                target = self.ask()
+                repeat = self.enemy.attack(target)
+                return repeat
+            except PosError as e:
+                pass
+
 class User(Player):
     def ask(self):
         while True:
@@ -198,13 +207,43 @@ class User(Player):
 
 class Game:
     def __init__(self, size=6):
+        self.start_text()
         self.size_board = size
-        player_board = self.enemy_board()
+        player_board = self.player_create_board()
         computer_board = self.enemy_board()
         computer_board.hid = True
 
         self.player = User(player_board, computer_board)
         self.computer = Computer(computer_board, player_board)
+
+    def player_create_board(self):
+        ships = [3, 2, 2, 1, 1, 1, 1]
+        game_board = Board(size=self.size_board)
+        while len(ships) != 0:
+            posX, posY = input('Капитан, введи координаты для расстановки корабля: ').split()
+            size_ship = input('Сударь, введи размер корабля: ')
+            try:
+                posX, posY, size_ship = int(posX), int(posY), int(size_ship)
+            except:
+                print('Протри моргала, отсавь ром и попробуй ещё раз')
+                continue
+            direction = input('Укажи как расположить корабль (| или -): ')
+            if '|' not in direction and '-' not in direction:
+                print('Капитан, проспись и попробуй ещё раз...')
+                continue
+            if size_ship not in ships:
+                print('Старый ты черт, такой корабль мы не можем себе позволить! Пробуем ещё раз!')
+                continue
+            ship = Ship(size_ship, Block_ship(posX-1, posY-1), direction)
+            try:
+                game_board.add_ship(ship)
+                ships.remove(size_ship)
+                print('Карабль на своей позиции!')
+                print(game_board)
+            except PosError:
+                pass
+        game_board.begin()
+        return game_board
 
     def create_board(self):
         ships = [3, 2, 2, 1, 1, 1, 1]
@@ -255,9 +294,6 @@ class Game:
                 break
 
             num += 1
-    def new_game(self):
-        self.start_text()
-        self.game_process()
 
     def start_text(self):
         hello_text = '''
@@ -269,11 +305,11 @@ class Game:
 широту и долготу, без них мы бессильны.
 Помни же, сначала передаешь информацию о координатах Х,
 а потом уже Y, и да поцелует меня русалка, все эти морские крысы пойдут ко дню.
-Тащите рому, бездельники, Капитан у штурвала!'''
+Тащите рому, бездельники, Капитан у штурвала!\n'''
         print(hello_text)
 
 
 g = Game()
-g.new_game()
+g.game_process()
 
 
