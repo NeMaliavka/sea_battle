@@ -1,10 +1,10 @@
 import random
 from abc import ABC, abstractmethod
-MARK_NONE = '🔘 '
-MARK_BUFFER = '🟡 '
-MARK_SHIP = '🔵 '
-MARK_KILL = '🔻 '
-MARK_MISS = '⚫ '
+MARK_NONE = '0 '
+MARK_BUFFER = '. '
+MARK_SHIP = 'V '
+MARK_KILL = 'X '
+MARK_MISS = '- '
 
 
 class PosError(Exception):
@@ -24,22 +24,12 @@ class Block_ship:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
-        # self.check_pos(x, y)
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
 
     def __str__(self):
         return f'pos x -> {self.x} \npos y -> {self.y}'
-
-    # def check_pos(self, x, y):
-    #     if all([1 <= x <= 6,
-    #             1 <= y <= 6]):
-    #         self.x = x
-    #         self.y = y
-    #         print("Ok")
-    #     else:
-    #         return 'Каррамба! Капитан, ты напутал с координатами и всё полетело в ТарТарары!'
 
 class Ship:
     def __init__(self, size: int, block_ship: Block_ship, direction: str):
@@ -104,7 +94,6 @@ class Board:
             for dx, dy in n:
                 current = Block_ship(d.x + dx, d.y + dy)
                 if not(self.out(current)) and current not in self.busy:
-                    #self.game_board[current.x][current.y] = MARK_BUFFER
                     if verb:
                         self.game_board[current.x][current.y] = MARK_BUFFER
                     self.busy.append(current)
@@ -141,9 +130,9 @@ class Board:
         self.busy = []
 
     def __str__(self):
-        res = '    '
+        res = '   '
         for i in range(self.size_board):
-            res += str(i+1) + '|  '
+            res += str(i+1) + '| '
         res += '\n'
         count = 1
         for i in range(self.size_board):
